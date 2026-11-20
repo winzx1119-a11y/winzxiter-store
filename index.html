@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#10051d">
+<title>WINZXITER Store</title>
+<style>
+:root{--bg:#0b0612;--card:#191127;--line:#35204e;--purple:#c026f5;--text:#f5edff;--muted:#a99ab9}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top,#29103e,var(--bg) 48%);color:var(--text);font:15px system-ui,Arial}
+header{padding:24px 18px;border-bottom:1px solid var(--line);position:sticky;top:0;background:#10091bf0;backdrop-filter:blur(12px)}
+.wrap{max-width:950px;margin:auto}h1{margin:0;font-size:25px}h1 span{color:var(--purple)}header p{margin:5px 0 0;color:var(--muted)}
+main{padding:22px 16px}.hero,.panel{background:#171025;border:1px solid var(--line);border-radius:18px;padding:19px;margin-bottom:16px;box-shadow:0 12px 35px #0004}
+.hero h2{margin:0 0 7px}.hero p,.muted{color:var(--muted)}.bar{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0}
+input,button{font:inherit;border-radius:12px;padding:12px;border:1px solid var(--line)}
+input{background:#0e0917;color:white;flex:1;min-width:180px}button{background:var(--purple);border:0;color:white;font-weight:700;cursor:pointer}
+button.secondary{background:#2a1a3d;border:1px solid var(--line)}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.item{background:#100b1a;border:1px solid var(--line);border-radius:14px;padding:14px}.item h3{margin:0 0 5px;font-size:16px}.price{font-weight:800;color:#e5b7ff;margin:8px 0}
+.tag{font-size:12px;color:#bda9d0}.status{padding:10px 12px;border-radius:10px;background:#100b1a;color:var(--muted);white-space:pre-wrap;overflow-wrap:anywhere}
+footer{text-align:center;color:var(--muted);padding:25px;font-size:13px}
+</style>
+</head>
+<body>
+<header><div class="wrap"><h1>WINZ<span>XITER</span> STORE</h1><p>Digital products • Pemesanan melalui katalog</p></div></header>
+<main class="wrap">
+<section class="hero"><h2>Selamat datang 👋</h2><p>Pilih produk dari katalog reseller. Harga dan stok ditampilkan dari API penyedia.</p>
+<div class="bar"><input id="search" placeholder="Cari nama produk atau ID..."><button id="refresh">Muat ulang produk</button></div>
+<div id="status" class="status">Menghubungkan ke katalog...</div></section>
+<section class="panel"><h2>Daftar Produk</h2><div id="products" class="grid"></div></section>
+<section class="panel"><h2>Informasi Checkout</h2><p class="muted">Checkout belum diaktifkan karena gateway QRIS dan webhook pembayaran belum dikonfigurasi. Pesanan supplier tidak akan dikirim sebelum pembayaran pembeli terverifikasi di server.</p></section>
+</main>
+<footer>© WINZXITER Store</footer>
+<script>
+let allProducts=[];
+const statusEl=document.getElementById('status');
+function pickArray(data){
+  if(Array.isArray(data)) return data;
+  for(const key of ['data','products','results','items']) if(Array.isArray(data?.[key])) return data[key];
+  return [];
+}
+function render(){
+ const q=document.getElementById('search').value.trim().toLowerCase();
+ const shown=allProducts.filter(p=>JSON.stringify(p).toLowerCase().includes(q));
+ document.getElementById('products').innerHTML=shown.map(p=>{
+  const id=p.variant_id ?? p.id ?? p.product_id ?? '-';
+  const name=p.name ?? p.product_name ?? p.product ?? 'Produk';
+  const variant=p.variant_name ?? p.duration ?? p.description ?? '';
+  const price=p.price ?? p.sell_price ?? p.harga ?? '';
+  const stock=p.stock ?? p.stok ?? '—';
+  return `<article class="item"><div class="tag">ID / VARIANT ${escapeHtml(id)}</div><h3>${escapeHtml(name)}</h3><div>${escapeHtml(variant)}</div><div class="price">${price!==''?'Rp '+Number(price).toLocaleString('id-ID'):'Harga mengikuti API'}</div><div class="tag">Stok: ${escapeHtml(stock)}</div></article>`;
+ }).join('') || '<p class="muted">Produk tidak ditemukan.</p>';
+}
+function escapeHtml(v){return String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
+async function load(){
+ statusEl.textContent='Mengambil katalog dari Thanhub API...';
+ try{
+  const r=await fetch('/api/products'); const data=await r.json();
+  if(!r.ok) throw new Error(data.error||'Gagal mengambil produk');
+  allProducts=pickArray(data); render();
+  statusEl.textContent=`Katalog berhasil dimuat. ${allProducts.length} item terbaca.`;
+ }catch(e){statusEl.textContent='Belum bisa memuat katalog: '+e.message+'\\nPeriksa API Key server dan format respons endpoint /products.';}
+}
+document.getElementById('refresh').addEventListener('click',load);
+document.getElementById('search').addEventListener('input',render);
+load();
+</script>
+</body></html>
